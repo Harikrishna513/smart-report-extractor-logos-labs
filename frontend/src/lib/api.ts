@@ -1,6 +1,6 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  (process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:8000");
+// Same Vercel project: leave unset in production → relative /api/v1/... (no CORS).
+// Set NEXT_PUBLIC_API_URL only for local dev when the API runs on a separate port.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 

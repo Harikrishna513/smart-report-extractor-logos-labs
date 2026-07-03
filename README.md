@@ -38,7 +38,9 @@ Documents outside this scope are rejected with a clear error message instead of 
 
 ### Deployment
 
-- Vercel
+- Vercel (single project: Next.js frontend + FastAPI via `api/index.py`)
+- Production API calls use **relative URLs** (`/api/v1/...`) — no `NEXT_PUBLIC_API_URL` on Vercel
+- Local dev only: set `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` in `frontend/.env.local`
 
 ---
 
@@ -105,6 +107,9 @@ http://localhost:8000/api/docs
 cd frontend
 
 npm install
+
+# Local dev: API runs separately on port 8000
+cp .env.example .env.local
 
 npm run dev
 ```
