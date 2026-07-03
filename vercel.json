@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd frontend && npm ci && npm run build",
   "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm ci && pip install ../backend",
+  "installCommand": "cd frontend && npm ci && uv pip install --system -r api/requirements.txt",
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
