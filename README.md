@@ -1,168 +1,226 @@
 # Smart Report Extractor
 
-Extract structured data and plain-English summaries from medical PDF reports (CBC, ECG, prescription, discharge summary, health checkup).
+## Overview
 
-## Features
+Smart Report Extractor is a web application that extracts structured information from medical PDF reports and generates a short summary of the report.
 
-- Upload a PDF via web UI or REST API
-- Deterministic medical domain validation and report-type classification (no LLM for gating)
-- Structured field extraction per report type
-- Plain-English summary via Gemini from extracted fields only
-- Clear error codes for invalid, non-medical, or unsupported documents
+The project was built as part of the Logos Labs AI Engineer take-home assignment. The focus of the implementation is on clean architecture, deterministic extraction, and keeping the LLM limited to summarization instead of using it for document understanding.
 
-## Quick start (local)
+Version 1 supports the following report types:
 
-### 1. Environment
+- CBC Report
+- ECG Report
+- Prescription
+- Discharge Summary
+- Health Checkup Report
 
-Copy `.env.example` to `.env` at the **project root** (or in `backend/`):
+Documents outside this scope are rejected with a clear error message instead of attempting a best-effort extraction.
 
-```bash
-cp .env.example .env
-# Set GEMINI_API_KEY from https://aistudio.google.com/apikey (AIza or AQ. prefix)
-```
+---
 
-The backend loads `.env` from the project root or `backend/` automatically.
+## Technology Stack
 
-### 2. Backend
+### Backend
+
+- Python 3.12
+- FastAPI
+- Pydantic v2
+- pdfplumber
+- PyMuPDF
+- Tesseract OCR (fallback)
+- Gemini API (summary generation)
+- Pytest
+
+### Frontend
+
+- Next.js
+- TypeScript
+
+### Deployment
+
+- Vercel
+
+---
+
+## Why this approach?
+
+The assignment allows complete freedom in how the extraction pipeline is designed.
+
+Instead of relying on an LLM for everything, I chose a deterministic pipeline for document validation, report classification, and field extraction. This makes the system easier to test, explain, and maintain.
+
+Gemini is only used to generate a human-readable summary after structured data has already been extracted.
+
+This keeps API usage low while making the extraction process predictable.
+
+---
+
+## Extraction Flow
+
+1. Upload PDF
+2. Validate file
+3. Extract text
+4. Detect whether the document is a supported medical report
+5. Classify the report type
+6. Extract structured fields
+7. Generate a summary
+8. Return the response
+
+If any step fails, the API returns a descriptive error instead of continuing with incorrect data.
+
+---
+
+## Running the project
+
+### Backend
 
 ```bash
 cd backend
+
 python -m venv .venv
 
-# Activate the virtual environment (required before pip install)
-# Windows PowerShell:
-.venv\Scripts\Activate.ps1
-# Windows CMD:
-.venv\Scripts\activate.bat
-# macOS/Linux:
 source .venv/bin/activate
 
 pip install -e ".[dev]"
 
-# Use python -m so uvicorn works even when Scripts/ is not on PATH
-python -m uvicorn app.main:app --reload --port 8000 --reload-exclude ".venv"
+python -m uvicorn app.main:app --reload
 ```
 
-If you skip activation, `pip` may install globally and `uvicorn` won't be found. Either activate the venv first, or run:
+API
 
-```bash
-.venv\Scripts\python -m uvicorn app.main:app --reload --port 8000 --reload-exclude ".venv"
+```
+http://localhost:8000
 ```
 
-- Health: http://localhost:8000/api/v1/health
-- API docs: http://localhost:8000/api/docs
+Swagger
 
-**Scanned PDFs (OCR):** Digital extraction is tried first. For image-only PDFs, the backend uses Tesseract when installed, otherwise **Gemini vision OCR** (requires `GEMINI_API_KEY`). On Windows, install Tesseract with:
-
-```powershell
-winget install UB-Mannheim.TesseractOCR
+```
+http://localhost:8000/api/docs
 ```
 
-Then restart the terminal so `tesseract` is on PATH, or set `TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe`.
+---
 
-### 3. Frontend
+### Frontend
 
 ```bash
 cd frontend
+
 npm install
-set NEXT_PUBLIC_API_URL=http://localhost:8000   # Windows
+
 npm run dev
 ```
 
-Open http://localhost:3000 — upload a medical PDF and click **Extract report**.
+Frontend
 
-### API upload (curl)
-
-```bash
-curl -X POST http://localhost:8000/api/v1/extract \
-  -F "file=@your-report.pdf;type=application/pdf"
+```
+http://localhost:3000
 ```
 
-## Docker (backend only)
+---
 
-```bash
-docker compose up --build
+## Environment Variables
+
+Copy
+
+```
+.env.example
 ```
 
-Runs the API on port 8000 with Tesseract available for OCR. Run the frontend separately with `npm run dev`.
+to
 
-## Tests
+```
+.env
+```
+
+and update
+
+```
+GEMINI_API_KEY
+```
+
+OCR is optional.
+
+If Tesseract is installed locally it will be used automatically.
+
+---
+
+## Running Tests
 
 ```bash
 cd backend
-pytest -v
+
+pytest
 ```
 
-**51 tests** — 36 run locally without Tesseract; 15 OCR fixture tests run when Tesseract is installed (e.g. in Docker).
+---
 
-Place sample PDFs in `backend/tests/fixtures/pdfs/` for local development (gitignored).
-
-## Supported report types
-
-| Type | Description |
-|------|-------------|
-| `cbc_report` | Complete blood count / lab panel |
-| `ecg_report` | Electrocardiogram |
-| `prescription` | Medication prescription |
-| `discharge_summary` | Hospital discharge summary |
-| `health_checkup` | Preventive health / wellness exam |
-
-Non-medical documents (invoices, resumes, etc.) return `422 not_medical_document` — no LLM is used for validation.
-
-## Project structure
+## Project Structure
 
 ```
-api/                 # Vercel serverless entrypoint
-backend/app/         # FastAPI + business logic
-frontend/src/        # Next.js UI
-docker-compose.yml   # Local backend with OCR
-vercel.json          # Vercel routing (frontend + Python API)
+backend/
+    app/
+    tests/
+
+frontend/
+    src/
+
+api/
+    index.py
+
+docker-compose.yml
+
+README.md
+
+ARCHITECTURE.md
+
+ENGINEERING_PLAN.md
+
+REFLECTION.md
 ```
 
-## Deployment (Vercel)
+---
 
-Configured for a single Vercel project:
+## Current Limitations
 
-- **Frontend** — Next.js build from `frontend/`
-- **Backend** — FastAPI via `api/index.py` (rewrites `/api/v1/*`, `/api/docs`)
+Version 1 intentionally keeps the scope small.
 
-Environment variables to set in Vercel:
+Supported
 
-| Variable | Notes |
-|----------|-------|
-| `GEMINI_API_KEY` | Required for summaries |
-| `OCR_ENABLED` | Set `false` on Vercel (Tesseract not available serverless) |
-| `NEXT_PUBLIC_API_URL` | Leave empty or set to your Vercel domain for same-origin API calls |
+- Medical reports
+- Digital PDFs
+- OCR fallback for scanned PDFs
 
-Verify build locally (no deploy):
+Not supported
 
-```bash
-npx vercel build --yes
-```
+- Invoices
+- Bank statements
+- Resume parsing
+- Medical image interpretation
+- Handwritten notes
+
+---
+
+## Future Improvements
+
+The application is designed so new components can be added without changing the extraction workflow.
+
+Some planned extensions are:
+
+- Google Drive integration
+- AWS S3 storage
+- Database for document history
+- Semantic search
+- RAG over previously processed reports
+- Additional medical report types
+- Background processing for large documents
+
+---
 
 ## Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — design and extension points
-- [REFLECTION.md](./REFLECTION.md) — AI tooling reflection (required for submission)
+The repository also contains:
 
-## Environment variables
+- ENGINEERING_PLAN.md
+- ARCHITECTURE.md
+- REFLECTION.md
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | For summaries | — | Google AI Studio key (`AIza…` or newer `AQ.…` auth keys) |
-| `GEMINI_MODEL` | No | `gemini-2.5-flash-lite` | Gemini model |
-| `GEMINI_TIMEOUT_SECONDS` | No | `30` | Summary timeout |
-| `OCR_ENABLED` | No | `true` | Disable on Vercel |
-| `OCR_MAX_PAGES` | No | `25` | Max pages to OCR per document |
-| `TESSERACT_CMD` | No | — | Path to `tesseract.exe` on Windows |
-| `GEMINI_OCR_ENABLED` | No | `true` | Use Gemini vision when Tesseract is missing |
-| `GEMINI_OCR_MODEL` | No | `gemini-2.5-flash-lite` | Model for vision OCR |
-| `NEXT_PUBLIC_API_URL` | Frontend | `http://localhost:8000` | Backend URL |
-
-## Submission checklist
-
-- [ ] GitHub repo with README, ARCHITECTURE.md, REFLECTION.md
-- [ ] Working UI and API (`/api/docs`)
-- [ ] AI reflection log and chat export
-- [ ] No `.env`, sample PDFs, or `__pycache__` committed
-- [ ] `pytest` passes locally
+These documents explain the design decisions, implementation approach, and how AI tools were used during development.
